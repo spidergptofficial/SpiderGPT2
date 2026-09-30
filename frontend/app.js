@@ -307,7 +307,7 @@ async function startCheckout(plan){
               payment_id:response.razorpay_payment_id,
               signature:response.razorpay_signature
             })});
-            if(verification.success){go("/payment-success");await refreshAccountAndGoHome();}
+            if(verification.success){go("/payment-success");await loadAccount();render();}
             else toast("Payment could not be verified.","error");
           }catch(e){toast(e.message,"error");}
         }
