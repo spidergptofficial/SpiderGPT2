@@ -50,6 +50,8 @@ class PaymentService:
             raise NotFoundException("Plan", f"Plan '{request.plan_code}' not found.")
 
         currency = (request.currency or settings.DEFAULT_CURRENCY or "INR").upper()
+        if currency not in {"INR", "USD"}:
+            raise PaymentFailedException("Unsupported billing currency.")
         billing_period = request.billing_period.lower()
 
         # Calculate price based on currency & billing period
@@ -215,6 +217,9 @@ class PaymentService:
         plan = await self.plan_repo.get_by_code(plan_code) if plan_code else (sub.plan if sub else None)
         if sub:
             sub.status = event["status"]
+            sub.provider = provider_name
+            if event.get("provider_customer_id"):
+                sub.provider_customer_id = event["provider_customer_id"]
             if provider_subscription_id:
                 sub.provider_subscription_id = provider_subscription_id
             if plan:
