@@ -62,7 +62,7 @@ class PaymentProvider(ABC):
         pass
 
     @abstractmethod
-    async def cancel_subscription(self, provider_subscription_id: str) -> bool:
+    async def cancel_subscription(self, provider_subscription_id: str, cancel_immediately: bool = False) -> bool:
         """Cancels a recurring subscription."""
         pass
 
