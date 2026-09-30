@@ -233,7 +233,7 @@ async function loadConversation(id){
 async function saveProfile(){
   const name=document.querySelector("#pname")?.value.trim(), age=Number(document.querySelector("#page")?.value);
   if(!name||!age||age<13||age>120){toast("Please enter a valid name and age (13–120).","error");return;}
-  try{state.user=await api("/profile/me",{method:"PUT",body:JSON.stringify({display_name:name,age:age})});go("/create-spider");}
+  try{state.user=await api("/profile/me",{method:"PUT",body:JSON.stringify({display_name:name,age:age})});go(state.spider?"/home":"/create-spider");}
   catch(e){toast(e.message,"error");}
 }
 function selectCreateMode(id){if(!canUseMode(id)){toast("That mode is not available on your current plan.","error");go("/pricing");return;}state.mode=id;localStorage.setItem(MODE_KEY,id);render();}
@@ -324,7 +324,7 @@ async function route(){
   if(!isAuthed()) return pageWelcome();
   if(p==="/profile-setup") return pageProfileSetup();
   if(p==="/create-spider") return pageCreateSpider();
-  if(p==="/home") return shell("Loading…","",'<div class="empty-state">Loading your Spider…</div>');
+  if(p==="/home") return pageHome();
   if(p==="/chat") return pageChat();
   if(p==="/personality") return pagePersonality();
   if(p==="/history") return pageHistory();
