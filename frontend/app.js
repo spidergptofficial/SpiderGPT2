@@ -8,7 +8,7 @@ const ACCESS_KEY = "spidergpt_access_token";
 const REFRESH_KEY = "spidergpt_refresh_token";
 const MODE_KEY = "spidergpt_mode";
 const THEME_KEY = "spidergpt_theme";
-const ASSET = "/frontend/assets/";
+const ASSET = "/assets/";
 
 const ALL_MODES = [
   {id:"Brain",icon:"◉",color:"#3B82F6",desc:"Clear, thoughtful answers."},
