@@ -139,3 +139,26 @@ async def require_admin_user(
     if not is_admin:
         raise ForbiddenException("Administrator privileges required.")
     return current_user
+
+
+async def verify_supabase_access_token(access_token: str) -> Dict[str, Any]:
+    """Validate a Supabase Auth access token against the Auth service."""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+        raise InvalidTokenException("Supabase authentication is not configured.")
+    url = settings.SUPABASE_URL.rstrip("/") + "/auth/v1/user"
+    headers = {"Authorization": f"Bearer {access_token}", "apikey": settings.SUPABASE_ANON_KEY}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code != 200:
+                raise InvalidTokenException("Supabase access token verification failed.")
+            data = resp.json()
+            user_id = data.get("id")
+            email = data.get("email")
+            if not user_id or not email:
+                raise InvalidTokenException("Supabase identity is incomplete.")
+            meta = data.get("user_metadata") or {}
+            return {"sub": user_id, "email": email.lower().strip(), "name": meta.get("full_name") or meta.get("name"), "picture": meta.get("avatar_url"), "email_verified": True}
+        except httpx.RequestError:
+            logger.exception("Network error during Supabase token verification")
+            raise InvalidTokenException("Failed to verify Supabase access token.")
