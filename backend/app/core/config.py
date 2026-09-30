@@ -122,6 +122,8 @@ class Settings(BaseSettings):
                 raise ValueError("Configured production AI provider is missing its API key")
             if self.IMAGE_PROVIDER.lower() == "mock":
                 raise ValueError("Mock image provider is forbidden in production")
+            if not self.SUPABASE_URL or not self.SUPABASE_ANON_KEY:
+                raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY are required in production")
             if not self.ADMIN_EMAILS:
                 raise ValueError("ADMIN_EMAILS must be explicitly configured in production")
             if not self.REDIS_URL:
