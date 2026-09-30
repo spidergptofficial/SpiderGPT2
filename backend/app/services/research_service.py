@@ -29,11 +29,20 @@ async def execute_background_deep_research(task_id: str, query: str) -> None:
     """Independent background worker coroutine for long-running research."""
     logger.info("Starting background Deep Research for task %s", task_id)
     async with async_session_factory() as session:
-        stmt = select(ResearchTask).where(ResearchTask.id == task_id)
-        res = await session.execute(stmt)
-        task = res.scalar_one_or_none()
+        claim = await session.execute(
+            update(ResearchTask)
+            .where(ResearchTask.id == task_id, ResearchTask.status == "queued")
+            .values(status="running")
+        )
+        await session.commit()
+        if claim.rowcount != 1:
+            logger.info("Research task %s was already claimed.", task_id)
+            return
+
+        result = await session.execute(select(ResearchTask).where(ResearchTask.id == task_id))
+        task = result.scalar_one_or_none()
         if not task:
-            logger.error("Research task %s not found in worker.", task_id)
+            logger.error("Research task %s disappeared after claim.", task_id)
             return
 
         try:
@@ -42,7 +51,7 @@ async def execute_background_deep_research(task_id: str, query: str) -> None:
             # 2. Decompose question into sub-queries via AI
             decomp_prompt = (
                 f"You are a research planning assistant. Decompose this research topic into 3 specific, targeted web search queries:\n"
-                f"Topic: {query}\n"
+                f"Topic: {task.query}\n"
                 "Return exactly 3 search queries, one per line, without numbering or bullets."
             )
             decomp_res = await AIFactory.chat_with_fallback(
@@ -51,7 +60,7 @@ async def execute_background_deep_research(task_id: str, query: str) -> None:
             )
 
             lines = [l.strip() for l in decomp_res["content"].split("\n") if l.strip()]
-            sub_queries = lines[:3] if len(lines) >= 3 else [query, f"{query} overview", f"{query} latest developments"]
+            sub_queries = lines[:3] if len(lines) >= 3 else [task.query, f"{task.query} overview", f"{task.query} latest developments"]
 
             # 3. Perform web searches
             search_provider = SearchFactory.get_search_provider()
