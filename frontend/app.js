@@ -34,7 +34,7 @@ const state = {
 
 function esc(value){return String(value ?? "").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c];});}
 function go(path){location.hash=path;}
-function currentPath(){return location.hash.slice(1)||"/";}
+function currentPath(){const raw=location.hash.slice(1)||"/";return raw.split("?")[0]||"/";}
 function icon(src,cls,alt){return '<img class="'+(cls||"asset")+'" src="'+ASSET+src+'" alt="'+esc(alt||"SpiderGPT")+'">';}
 function logoLockup(){return icon("brand-lockup.webp","brand-lockup","SpiderGPT");}
 function wordmark(){return icon("wordmark.webp","wordmark","SpiderGPT");}
