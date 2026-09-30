@@ -76,7 +76,7 @@ class RazorpayPaymentProvider(PaymentProvider):
         if not payment_id or not signature or not self.key_secret:
             return False
         # For Razorpay subscriptions the checkout identifier is the subscription ID.
-        return verify_razorpay_signature(f"{payment_id}|{order_id}".encode(), signature, self.key_secret)
+        return verify_razorpay_signature(f"{order_id}|{payment_id}".encode(), signature, self.key_secret)
 
     async def get_checkout_details(self, checkout_id: str) -> Dict[str, Any]:
         self._require_configured()
