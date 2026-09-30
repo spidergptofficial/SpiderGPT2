@@ -171,8 +171,13 @@ class PaymentService:
         event = provider.parse_webhook_event(payload_body, headers)
         event_id = event["event_id"]
 
-        # 3. Enforce Idempotency
-        if await self.payment_repo.is_event_processed(event_id):
+        # 3. Atomically claim the event before applying side effects.
+        if not await self.payment_repo.claim_webhook_event(
+            event_id=event_id,
+            provider=provider_name,
+            event_type=event["event_type"],
+            payload_summary={"user_id": event.get("user_id"), "status": event["status"]},
+        ):
             logger.info("Webhook event %s already processed. Skipping duplicate.", event_id)
             return {"status": "duplicate_skipped", "event_id": event_id}
 
@@ -208,12 +213,6 @@ class PaymentService:
                     )
                     await self.sub_repo.create(new_sub)
 
-        # 5. Record Processed Event for idempotency
-        await self.payment_repo.record_processed_event(
-            event_id=event_id,
-            provider=provider_name,
-            event_type=event["event_type"],
-            payload_summary={"user_id": user_id, "status": event["status"]},
-        )
-
+        # The event claim is in the same transaction as subscription changes.
+        # Failures roll back the claim so the provider can safely retry.
         return {"status": "processed", "event_id": event_id}
