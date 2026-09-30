@@ -98,13 +98,13 @@ class RazorpayPaymentProvider(PaymentProvider):
                 logger.exception("Razorpay subscription retrieval error")
                 return {}
 
-    async def cancel_subscription(self, provider_subscription_id: str) -> bool:
+    async def cancel_subscription(self, provider_subscription_id: str, cancel_immediately: bool = False) -> bool:
         self._require_configured()
         async with httpx.AsyncClient(timeout=20.0) as client:
             try:
                 resp = await client.post(
                     f"{self.base_url}/subscriptions/{provider_subscription_id}/cancel",
-                    headers=self._get_auth_header(), json={"cancel_at_cycle_end": 1},
+                    headers=self._get_auth_header(), json={"cancel_at_cycle_end": 0 if cancel_immediately else 1},
                 )
                 return resp.status_code in (200, 204)
             except httpx.RequestError:
