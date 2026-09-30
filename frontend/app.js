@@ -212,10 +212,16 @@ async function syncSession(){
 async function loadAccount(){
   if(!isAuthed()) return;
   const values=await Promise.all([
-    api("/auth/me"),api("/profile/me"),api("/usage"),api("/spider/me"),
-    api("/subscriptions/me").catch(function(){return null;}),api("/subscriptions/plans").catch(function(){return []})
+    api("/auth/me"),api("/profile/me"),api("/usage"),
+    api("/spider/me").catch(function(){return null;}),
+    api("/subscriptions/me").catch(function(){return null;}),
+    api("/subscriptions/plans").catch(function(){return [];})
   ]);
-  state.user=values[0]||values[1]; state.usage=values[2]; state.spider=normalizeSpider(values[3]); state.subscription=values[4]; state.plans=values[5]||[];
+  state.user=values[0]||values[1];
+  state.usage=values[2];
+  state.spider=normalizeSpider(values[3]);
+  state.subscription=values[4];
+  state.plans=values[5]||[];
   if(state.spider?.personality_mode && canUseMode(state.spider.personality_mode)) state.mode=state.spider.personality_mode;
   if(!canUseMode(state.mode)) state.mode=allowedModes()[0]||"Brain";
   localStorage.setItem(MODE_KEY,state.mode);
