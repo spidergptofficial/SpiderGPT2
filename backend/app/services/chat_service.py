@@ -3,7 +3,6 @@ import json
 from typing import AsyncIterator, Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import settings
 from backend.app.core.exceptions import NotFoundException
 from backend.app.models.user import User
 from backend.app.models.spider import Spider
@@ -49,8 +48,8 @@ class ChatService:
 
     async def process_chat(self, user: User, request: ChatRequest) -> Dict[str, Any]:
         """Processes non-streaming chat with quota enforcement, context windowing, and provider dispatch."""
-        # 1. Enforce & Consume Daily Quota
-        remaining = await self.usage_service.check_and_consume_ai_response(user)
+        # 1. Resolve Conversation
+        remaining = None
 
         # 2. Resolve Conversation
         conversation = None
@@ -73,7 +72,10 @@ class ChatService:
         plan = await self.plan_service.get_user_effective_plan(user)
         active_mode = ModeService.validate_mode_access(request.mode or conversation.mode, plan.allowed_modes)
 
-        # 4. Save User Message
+        # 4. Reserve quota after conversation and mode validation.
+        remaining = await self.usage_service.check_and_consume_ai_response(user)
+
+        # 5. Save User Message
         user_msg = Message(
             id=generate_id("msg"),
             conversation_id=conversation.id,
@@ -84,7 +86,7 @@ class ChatService:
         )
         await self.chat_repo.add_message(user_msg)
 
-        # 5. Optional Web Search Grounding
+        # 6. Optional Web Search Grounding
         search_context = ""
         if request.web_search:
             search_provider = SearchFactory.get_search_provider()
@@ -94,7 +96,7 @@ class ChatService:
                     f"[{i+1}] {r['title']}: {r['snippet']} ({r['url']})" for i, r in enumerate(search_results)
                 )
 
-        # 6. Context Window Assembly
+        # 7. Context Window Assembly
         spider = await self.spider_repo.get_by_user_id(user.id)
         system_prompt = await self._build_system_context(user, active_mode, spider)
         if search_context:
@@ -103,13 +105,13 @@ class ChatService:
         history_msgs = await self.chat_repo.get_recent_messages(conversation.id, limit=12)
         formatted_history = [{"role": m.role, "content": m.content} for m in history_msgs]
 
-        # 7. AI Provider Execution with Fallback
+        # 8. AI Provider Execution with Fallback
         ai_result = await AIFactory.chat_with_fallback(
             messages=formatted_history,
             system_instruction=system_prompt,
         )
 
-        # 8. Save Assistant Message
+        # 9. Save Assistant Message
         assistant_msg = Message(
             id=generate_id("msg"),
             conversation_id=conversation.id,
@@ -130,8 +132,7 @@ class ChatService:
 
     async def stream_chat(self, user: User, request: ChatRequest) -> AsyncIterator[str]:
         """Streams response tokens through Server-Sent Events (SSE)."""
-        # Enforce quota upfront
-        await self.usage_service.check_and_consume_ai_response(user)
+        # Conversation resolution and mode validation happen before quota consumption.
 
         # Conversation resolution
         if request.conversation_id:
@@ -151,6 +152,9 @@ class ChatService:
         # Mode validation
         plan = await self.plan_service.get_user_effective_plan(user)
         active_mode = ModeService.validate_mode_access(request.mode or conversation.mode, plan.allowed_modes)
+
+        # Reserve quota after conversation and mode validation.
+        await self.usage_service.check_and_consume_ai_response(user)
 
         # Save user message
         user_msg = Message(
@@ -190,8 +194,8 @@ class ChatService:
             user_id=user.id,
             role="assistant",
             content=full_text,
-            model=settings.GEMINI_MODEL,
-            provider="active",
+            model=None,
+            provider=None,
         )
         await self.chat_repo.add_message(assistant_msg)
 
