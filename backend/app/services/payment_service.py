@@ -74,6 +74,7 @@ class PaymentService:
         )
 
         # Store order
+        provider_subscription_id = checkout_data.get("provider_subscription_id")
         order = PaymentOrder(
             id=generate_id("ord"),
             user_id=user.id,
@@ -83,7 +84,7 @@ class PaymentService:
             amount=amount,
             currency=currency,
             status="created",
-            metadata_json={"billing_period": billing_period, "plan_code": plan.code},
+            metadata_json={"billing_period": billing_period, "plan_code": plan.code, "provider_subscription_id": provider_subscription_id},
         )
         await self.payment_repo.create_order(order)
 
@@ -110,22 +111,40 @@ class PaymentService:
 
         order.status = "paid"
         plan = await self.plan_repo.get_by_id(order.plan_id)
+        if not plan:
+            raise NotFoundException("Plan", "The plan attached to this order no longer exists.")
 
-        # Activate or update subscription
+        provider_details = await provider.get_checkout_details(order.order_id)
+        if not provider_details.get("paid"):
+            raise PaymentFailedException("Payment is not confirmed by the payment provider.")
+
+        provider_subscription_id = provider_details.get("provider_subscription_id") or order.metadata_json.get("provider_subscription_id")
+        if not provider_subscription_id:
+            raise PaymentFailedException("Provider did not return a recurring subscription identifier.")
+
         billing_period = order.metadata_json.get("billing_period", "monthly")
-        duration_days = 365 if billing_period == "yearly" else 30
         now = get_utc_now()
-        period_end = now + timedelta(days=duration_days)
+        period_start = provider_details.get("current_period_start") or now
+        period_end = provider_details.get("current_period_end")
+        if not period_end:
+            duration_days = 365 if billing_period == "yearly" else 30
+            period_end = now + timedelta(days=duration_days)
 
-        existing_sub = await self.sub_repo.get_active_by_user_id(user.id)
+        existing_sub = await self.sub_repo.get_by_provider_sub_id(provider_subscription_id)
+        if not existing_sub:
+            existing_sub = await self.sub_repo.get_active_by_user_id(user.id)
+
         if existing_sub:
             existing_sub.plan_id = plan.id
             existing_sub.provider = order.provider
+            existing_sub.provider_customer_id = provider_details.get("customer_id")
+            existing_sub.provider_subscription_id = provider_subscription_id
             existing_sub.billing_period = billing_period
             existing_sub.amount = order.amount
             existing_sub.currency = order.currency
             existing_sub.status = "active"
-            existing_sub.current_period_start = now
+            existing_sub.cancel_at_period_end = False
+            existing_sub.current_period_start = period_start
             existing_sub.current_period_end = period_end
             sub_id = existing_sub.id
         else:
@@ -134,12 +153,13 @@ class PaymentService:
                 user_id=user.id,
                 plan_id=plan.id,
                 provider=order.provider,
-                provider_subscription_id=request.payment_id or order.order_id,
+                provider_customer_id=provider_details.get("customer_id"),
+                provider_subscription_id=provider_subscription_id,
                 billing_period=billing_period,
                 amount=order.amount,
                 currency=order.currency,
                 status="active",
-                current_period_start=now,
+                current_period_start=period_start,
                 current_period_end=period_end,
             )
             await self.sub_repo.create(new_sub)
@@ -186,32 +206,42 @@ class PaymentService:
 
         user_id = event.get("user_id")
         plan_code = event.get("plan_code")
+        provider_subscription_id = event.get("provider_subscription_id")
+        sub = await self.sub_repo.get_by_provider_sub_id(provider_subscription_id) if provider_subscription_id else None
 
-        if user_id and plan_code:
-            plan = await self.plan_repo.get_by_code(plan_code)
+        if not sub and user_id:
+            sub = await self.sub_repo.get_active_by_user_id(user_id)
+
+        plan = await self.plan_repo.get_by_code(plan_code) if plan_code else (sub.plan if sub else None)
+        if sub:
+            sub.status = event["status"]
+            if provider_subscription_id:
+                sub.provider_subscription_id = provider_subscription_id
             if plan:
-                billing_period = event.get("billing_period", "monthly")
-                duration = 365 if billing_period == "yearly" else 30
-                now = get_utc_now()
-
-                sub = await self.sub_repo.get_active_by_user_id(user_id)
-                if sub:
-                    sub.plan_id = plan.id
-                    sub.status = event["status"]
-                    sub.current_period_end = now + timedelta(days=duration)
-                else:
-                    new_sub = Subscription(
-                        id=generate_id("sub"),
-                        user_id=user_id,
-                        plan_id=plan.id,
-                        provider=provider_name,
-                        provider_subscription_id=event.get("provider_subscription_id"),
-                        billing_period=billing_period,
-                        status=event["status"],
-                        current_period_start=now,
-                        current_period_end=now + timedelta(days=duration),
-                    )
-                    await self.sub_repo.create(new_sub)
+                sub.plan_id = plan.id
+            if event.get("billing_period"):
+                sub.billing_period = event["billing_period"]
+            if event.get("current_period_start"):
+                sub.current_period_start = datetime.fromtimestamp(event["current_period_start"], tz=timezone.utc) if isinstance(event["current_period_start"], (int, float)) else event["current_period_start"]
+            if event.get("current_period_end"):
+                sub.current_period_end = datetime.fromtimestamp(event["current_period_end"], tz=timezone.utc) if isinstance(event["current_period_end"], (int, float)) else event["current_period_end"]
+            if event["status"] in {"cancelled", "expired"}:
+                sub.cancel_at_period_end = False
+        elif user_id and plan:
+            now = get_utc_now()
+            duration = 365 if event.get("billing_period") == "yearly" else 30
+            new_sub = Subscription(
+                id=generate_id("sub"),
+                user_id=user_id,
+                plan_id=plan.id,
+                provider=provider_name,
+                provider_subscription_id=provider_subscription_id,
+                billing_period=event.get("billing_period", "monthly"),
+                status=event["status"],
+                current_period_start=now,
+                current_period_end=now + timedelta(days=duration),
+            )
+            await self.sub_repo.create(new_sub)
 
         # The event claim is in the same transaction as subscription changes.
         # Failures roll back the claim so the provider can safely retry.
