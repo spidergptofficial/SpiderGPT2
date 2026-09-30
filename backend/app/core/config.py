@@ -1,7 +1,7 @@
 """SpiderGPT configuration and production safety checks."""
-from typing import List, Optional
+from typing import Annotated, List, Optional
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     APPLICATION_BASE_URL: str = "http://localhost:8000"
     FRONTEND_BASE_URL: str = "http://localhost:3000"
-    ALLOWED_CORS_ORIGINS: List[str] = Field(
+    ALLOWED_CORS_ORIGINS: Annotated[List[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
     )
 
@@ -80,7 +80,7 @@ class Settings(BaseSettings):
 
     DEFAULT_CURRENCY: str = "INR"
     TIMEZONE: str = "UTC"
-    ADMIN_EMAILS: List[str] = Field(default_factory=list)
+    ADMIN_EMAILS: Annotated[List[str], NoDecode] = Field(default_factory=list)
     RATE_LIMIT_PER_MINUTE: int = 120
 
     @field_validator("ALLOWED_CORS_ORIGINS", mode="before")
