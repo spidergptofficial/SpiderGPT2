@@ -52,7 +52,7 @@ DEFAULT_PLANS = [
         "monthly_price_usd": 1299,    # $12.99
         "yearly_price_usd": 12999,    # $129.99
         "regional_pricing": {},
-        "daily_response_limit": 300,
+        "daily_response_limit": -1,
         "daily_image_limit": 35,
         "monthly_name_change_limit": -1,       # -1 indicates Unlimited
         "monthly_appearance_change_limit": -1,  # -1 indicates Unlimited
