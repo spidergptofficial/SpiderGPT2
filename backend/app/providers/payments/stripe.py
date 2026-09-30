@@ -39,14 +39,16 @@ class StripePaymentProvider(PaymentProvider):
         meta = {"user_id": user_id, "email": email, "plan_code": plan_code, "billing_period": billing_period}
         if metadata:
             meta.update({k: str(v) for k, v in metadata.items()})
+        interval = "year" if billing_period == "yearly" else "month"
         form_data = [
-            ("payment_method_types[]", "card"), ("mode", "payment"),
+            ("payment_method_types[]", "card"), ("mode", "subscription"),
             ("success_url", f"{settings.FRONTEND_BASE_URL}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"),
             ("cancel_url", f"{settings.FRONTEND_BASE_URL}/payment/cancel"),
             ("customer_email", email),
             ("line_items[0][price_data][currency]", currency.lower()),
             ("line_items[0][price_data][unit_amount]", str(amount)),
             ("line_items[0][price_data][product_data][name]", f"SpiderGPT {plan_code.title()} ({billing_period})"),
+            ("line_items[0][price_data][recurring][interval]", interval),
             ("line_items[0][quantity]", "1"),
         ]
         for k, v in meta.items():
@@ -65,17 +67,30 @@ class StripePaymentProvider(PaymentProvider):
                 logger.exception("Stripe network request error")
                 raise PaymentFailedException("Could not connect to Stripe payment gateway.")
 
-    async def verify_payment(self, order_id: str, payment_id: Optional[str] = None,
-                             signature: Optional[str] = None) -> bool:
-        if not self.is_configured:
-            return False
+    async def get_checkout_details(self, checkout_id: str) -> Dict[str, Any]:
+        self._require_configured()
         async with httpx.AsyncClient(timeout=20.0) as client:
             try:
-                resp = await client.get(f"{self.base_url}/checkout/sessions/{order_id}", headers=self._get_headers())
-                return resp.status_code == 200 and resp.json().get("payment_status") == "paid"
+                resp = await client.get(f"{self.base_url}/checkout/sessions/{checkout_id}", headers=self._get_headers())
+                if resp.status_code != 200:
+                    return {}
+                data = resp.json()
+                return {
+                    "paid": data.get("payment_status") == "paid",
+                    "mode": data.get("mode"),
+                    "provider_subscription_id": data.get("subscription"),
+                    "customer_id": data.get("customer"),
+                    "current_period_start": None,
+                    "current_period_end": None,
+                }
             except httpx.RequestError:
                 logger.exception("Stripe session retrieval error")
-                return False
+                return {}
+
+    async def verify_payment(self, order_id: str, payment_id: Optional[str] = None,
+                             signature: Optional[str] = None) -> bool:
+        details = await self.get_checkout_details(order_id)
+        return bool(details.get("paid") and details.get("mode") == "subscription" and details.get("provider_subscription_id"))
 
     async def cancel_subscription(self, provider_subscription_id: str) -> bool:
         self._require_configured()
