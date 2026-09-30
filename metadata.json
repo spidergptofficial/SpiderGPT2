@@ -1,0 +1,6 @@
+{
+  "name": "SpiderGPT",
+  "description": "SpiderGPT - Your AI Sidekick. Production-ready backend API with multi-provider AI, personalization, subscriptions, and deep research.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
