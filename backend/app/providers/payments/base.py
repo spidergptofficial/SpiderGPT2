@@ -57,6 +57,11 @@ class PaymentProvider(ABC):
         pass
 
     @abstractmethod
+    async def get_checkout_details(self, checkout_id: str) -> Dict[str, Any]:
+        """Returns provider-authoritative checkout/subscription state and period metadata."""
+        pass
+
+    @abstractmethod
     async def cancel_subscription(self, provider_subscription_id: str) -> bool:
         """Cancels a recurring subscription."""
         pass
