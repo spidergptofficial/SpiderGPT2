@@ -26,6 +26,7 @@ class CheckoutSessionResponse(BaseModel):
     key_id: Optional[str] = None  # Razorpay Key ID or Stripe Publishable Key (public keys only!)
     client_secret: Optional[str] = None  # Stripe client secret or payment session data
     checkout_url: Optional[str] = None
+    provider_subscription_id: Optional[str] = None
     metadata: Dict[str, Any] = {}
 
 
