@@ -137,6 +137,8 @@ class Settings(BaseSettings):
                     raise ValueError("Configured Razorpay requires key ID, key secret, and webhook secret")
                 if not all((self.RAZORPAY_PLAN_PRO_MONTHLY, self.RAZORPAY_PLAN_PRO_YEARLY, self.RAZORPAY_PLAN_PLUS_MONTHLY, self.RAZORPAY_PLAN_PLUS_YEARLY)):
                     raise ValueError("Configured Razorpay requires recurring plan IDs for Pro/Plus monthly/yearly")
+            if not ((self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_SECRET) or (self.STRIPE_SECRET_KEY and self.STRIPE_PUBLISHABLE_KEY)):
+                raise ValueError("At least one production payment provider must be fully configured")
             if self.STRIPE_SECRET_KEY or self.STRIPE_PUBLISHABLE_KEY:
                 if not (self.STRIPE_SECRET_KEY and self.STRIPE_PUBLISHABLE_KEY and self.STRIPE_WEBHOOK_SECRET):
                     raise ValueError("Configured Stripe requires secret key, publishable key, and webhook secret")
