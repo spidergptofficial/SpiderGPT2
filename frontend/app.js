@@ -291,7 +291,33 @@ async function startCheckout(plan){
   try{
     const result=await api("/payments/checkout",{method:"POST",body:JSON.stringify({plan_code:plan,billing_period:period,currency:"INR"})});
     if(result.checkout_url){location.href=result.checkout_url;return;}
-    toast("Payment provider did not return a checkout URL.","error");
+    if(result.provider==="razorpay" && window.Razorpay){
+      const options={
+        key:result.key_id,
+        subscription_id:result.provider_subscription_id||result.order_id,
+        name:"SpiderGPT",
+        description:"SpiderGPT "+plan+" subscription",
+        prefill:{name:state.user?.display_name||state.user?.name||"",email:state.user?.email||""},
+        theme:{color:"#FF3B30"},
+        handler:async function(response){
+          try{
+            const verification=await api("/payments/verify",{method:"POST",body:JSON.stringify({
+              provider:"razorpay",
+              order_id:result.order_id,
+              payment_id:response.razorpay_payment_id,
+              signature:response.razorpay_signature
+            })});
+            if(verification.success){go("/payment-success");await refreshAccountAndGoHome();}
+            else toast("Payment could not be verified.","error");
+          }catch(e){toast(e.message,"error");}
+        }
+      };
+      const checkout=new window.Razorpay(options);
+      checkout.on("payment.failed",function(){toast("Payment failed or was cancelled.","error");});
+      checkout.open();
+      return;
+    }
+    toast("Payment provider did not return a usable checkout session.","error");
   }catch(e){toast(e.message,"error");}
 }
 async function cancelSubscription(immediate){
