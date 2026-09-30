@@ -130,16 +130,11 @@ class AIFactory:
             ):
                 yield chunk
         except AIProviderException as primary_err:
-            logger.warning("Primary AI stream failed on '%s': %s", primary.provider_name, primary_err.message)
-            fallback = cls.get_fallback_provider()
-            if fallback and fallback.is_configured:
-                logger.info("Switching stream to fallback provider '%s'", fallback.provider_name)
-                async for chunk in fallback.stream_chat(
-                    messages=messages,
-                    system_instruction=system_instruction,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                ):
-                    yield chunk
-            else:
-                raise primary_err
+            # A stream may already have been sent to the client. Switching providers
+            # here would splice two responses together and can duplicate content.
+            logger.warning(
+                "AI stream failed on '%s'; refusing mid-stream fallback: %s",
+                primary.provider_name,
+                primary_err.message,
+            )
+            raise primary_err
