@@ -2,7 +2,6 @@
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.payment import PaymentOrder, ProcessedWebhookEvent
 from backend.app.utils.id_generator import generate_id
@@ -37,29 +36,6 @@ class PaymentRepository:
         payload_summary: dict,
     ) -> bool:
         """Atomically claim an event ID; returns False for a concurrent/previous duplicate."""
-        event = ProcessedWebhookEvent(
-            id=generate_id("evt"),
-            event_id=event_id,
-            provider=provider,
-            event_type=event_type,
-            payload_summary=payload_summary,
-            processed_at=get_utc_now(),
-        )
-        try:
-            async with self.db.begin_nested():
-                self.db.add(event)
-                await self.db.flush()
-            return True
-        except IntegrityError:
-            return False
-
-    async def claim_webhook_event(
-        self,
-        event_id: str,
-        provider: str,
-        event_type: str,
-        payload_summary: dict,
-    ) -> bool:
         event = ProcessedWebhookEvent(
             id=generate_id("evt"),
             event_id=event_id,
