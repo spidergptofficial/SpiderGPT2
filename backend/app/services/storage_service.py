@@ -19,7 +19,8 @@ class StorageService:
     def __init__(self):
         self.provider = settings.STORAGE_PROVIDER
         self.local_dir = settings.STORAGE_LOCAL_DIR
-        os.makedirs(self.local_dir, exist_ok=True)
+        if self.provider == "local":
+            os.makedirs(self.local_dir, exist_ok=True)
 
     async def save_file(self, file_bytes: bytes, filename: str, content_type: str) -> Dict[str, Any]:
         """Validates MIME type, enforces size limits, and securely persists binary file."""
@@ -29,8 +30,8 @@ class StorageService:
         if content_type not in ALLOWED_IMAGE_MIMES:
             raise ValidationErrorException(f"Unsupported media type: {content_type}. Allowed: {ALLOWED_IMAGE_MIMES}")
 
-        ext = filename.split(".")[-1] if "." in filename else "png"
-        clean_filename = f"{uuid.uuid4().hex}.{ext}"
+        extension_by_mime = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}
+        clean_filename = f"{uuid.uuid4().hex}.{extension_by_mime[content_type]}"
 
         if self.provider == "supabase" and settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
             # Upload to Supabase Storage bucket via HTTPX
@@ -46,7 +47,9 @@ class StorageService:
                     public_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{settings.STORAGE_BUCKET_NAME}/{clean_filename}"
                     return {"url": public_url, "filename": clean_filename, "size": len(file_bytes)}
 
-        # Local storage fallback
+        if self.provider != "local":
+            raise ValidationErrorException("Configured storage provider is unavailable.")
+
         file_path = os.path.join(self.local_dir, clean_filename)
         with open(file_path, "wb") as f:
             f.write(file_bytes)
