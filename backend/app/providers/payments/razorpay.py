@@ -44,17 +44,27 @@ class RazorpayPaymentProvider(PaymentProvider):
         notes = {"user_id": user_id, "email": email, "plan_code": plan_code, "billing_period": billing_period}
         if metadata:
             notes.update({k: str(v) for k, v in metadata.items()})
-        payload = {"amount": amount, "currency": currency, "receipt": f"rcpt_{uuid.uuid4().hex[:10]}", "notes": notes}
+        plan_key = f"RAZORPAY_PLAN_{plan_code.upper()}_{billing_period.upper()}"
+        plan_id = getattr(settings, plan_key, None)
+        if not plan_id:
+            raise PaymentFailedException(f"Razorpay recurring plan is not configured for {plan_code}/{billing_period}.")
+        payload = {
+            "plan_id": plan_id,
+            "total_count": 12 if billing_period == "monthly" else 1,
+            "quantity": 1,
+            "customer_notify": 1,
+            "notes": notes,
+        }
         async with httpx.AsyncClient(timeout=20.0) as client:
             try:
-                resp = await client.post(f"{self.base_url}/orders", headers=self._get_auth_header(), json=payload)
+                resp = await client.post(f"{self.base_url}/subscriptions", headers=self._get_auth_header(), json=payload)
                 if resp.status_code not in (200, 201):
                     logger.error("Razorpay order creation error (%d): %s", resp.status_code, resp.text[:200])
-                    raise PaymentFailedException("Failed to initiate Razorpay checkout order.")
+                    raise PaymentFailedException("Failed to initiate Razorpay subscription checkout.")
                 data = resp.json()
-                return {"provider": self.provider_name, "order_id": data.get("id"), "amount": data.get("amount"),
-                        "currency": data.get("currency"), "key_id": self.key_id, "client_secret": None,
-                        "checkout_url": None, "metadata": notes}
+                return {"provider": self.provider_name, "order_id": data.get("id"), "amount": amount,
+                        "currency": currency, "key_id": self.key_id, "client_secret": None,
+                        "checkout_url": None, "provider_subscription_id": data.get("id"), "metadata": notes}
             except httpx.RequestError:
                 logger.exception("Razorpay network request error")
                 raise PaymentFailedException("Could not connect to payment gateway.")
@@ -65,7 +75,28 @@ class RazorpayPaymentProvider(PaymentProvider):
             return False
         if not payment_id or not signature or not self.key_secret:
             return False
-        return verify_razorpay_signature(f"{order_id}|{payment_id}".encode(), signature, self.key_secret)
+        # For Razorpay subscriptions the checkout identifier is the subscription ID.
+        return verify_razorpay_signature(f"{payment_id}|{order_id}".encode(), signature, self.key_secret)
+
+    async def get_checkout_details(self, checkout_id: str) -> Dict[str, Any]:
+        self._require_configured()
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            try:
+                resp = await client.get(f"{self.base_url}/subscriptions/{checkout_id}", headers=self._get_auth_header())
+                if resp.status_code != 200:
+                    return {}
+                data = resp.json()
+                return {
+                    "paid": data.get("status") in {"active", "authenticated", "completed"},
+                    "provider_subscription_id": data.get("id"),
+                    "customer_id": data.get("customer_id"),
+                    "status": data.get("status"),
+                    "current_period_start": data.get("current_start"),
+                    "current_period_end": data.get("current_end"),
+                }
+            except httpx.RequestError:
+                logger.exception("Razorpay subscription retrieval error")
+                return {}
 
     async def cancel_subscription(self, provider_subscription_id: str) -> bool:
         self._require_configured()
@@ -90,17 +121,21 @@ class RazorpayPaymentProvider(PaymentProvider):
         data = json.loads(payload_body.decode("utf-8"))
         event_type = data.get("event", "")
         payment_entity = data.get("payload", {}).get("payment", {}).get("entity", {})
-        event_id = data.get("event_id") or payment_entity.get("id")
+        subscription_entity = data.get("payload", {}).get("subscription", {}).get("entity", {})
+        entity = subscription_entity or payment_entity
+        event_id = data.get("event_id") or payment_entity.get("id") or subscription_entity.get("id")
         if not event_id:
             raise PaymentFailedException("Razorpay webhook event ID is missing.")
-        notes = payment_entity.get("notes", {})
+        notes = entity.get("notes", {})
         return {
             "event_id": event_id,
             "event_type": event_type,
             "user_id": notes.get("user_id"),
             "plan_code": notes.get("plan_code"),
             "billing_period": notes.get("billing_period", "monthly"),
-            "provider_subscription_id": payment_entity.get("subscription_id") or payment_entity.get("id"),
-            "status": "active" if event_type in {"payment.captured", "subscription.activated", "order.paid"} else event_type,
+            "provider_subscription_id": subscription_entity.get("id") or payment_entity.get("subscription_id"),
+            "status": {"subscription.activated": "active", "subscription.charged": "active", "subscription.completed": "expired", "subscription.cancelled": "cancelled", "subscription.paused": "paused", "subscription.halted": "past_due", "payment.failed": "past_due"}.get(event_type, event_type),
+            "current_period_start": subscription_entity.get("current_start"),
+            "current_period_end": subscription_entity.get("current_end"),
             "raw": data,
         }
