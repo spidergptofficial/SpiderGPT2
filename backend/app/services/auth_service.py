@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.config import settings
 from backend.app.core.exceptions import InvalidTokenException
 from backend.app.core.logging import logger
-from backend.app.core.security import create_access_token, create_refresh_token, verify_google_id_token, decode_token
+from backend.app.core.security import create_access_token, create_refresh_token, verify_google_id_token, verify_supabase_access_token, decode_token
 from backend.app.models.user import User
 from backend.app.repositories.user_repo import UserRepository
 from backend.app.repositories.plan_repo import PlanRepository
@@ -30,7 +30,9 @@ class AuthService:
         """Authenticates user via Google OAuth identity verification and creates or updates local profile."""
         google_info = None
 
-        if id_token:
+        if access_token and settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
+            google_info = await verify_supabase_access_token(access_token)
+        elif id_token:
             try:
                 google_info = await verify_google_id_token(id_token)
             except Exception as e:
@@ -54,7 +56,7 @@ class AuthService:
                 "picture": fallback_picture,
             }
         else:
-            raise InvalidTokenException("Google ID token is required for authentication.")
+            raise InvalidTokenException("A valid Supabase access token or Google ID token is required.")
 
         email = google_info["email"].lower().strip()
         auth_id = google_info["sub"]
