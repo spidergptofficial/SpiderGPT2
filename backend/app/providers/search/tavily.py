@@ -142,20 +142,4 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                             })
                             if len(results) >= max_results:
                                 break
-                if not results:
-                    # Provide informative mock results so deep research or search never crashes
-                    results.append({
-                        "title": f"SpiderGPT Research Overview: {query}",
-                        "url": f"https://en.wikipedia.org/wiki/{query.replace(' ', '_')}",
-                        "snippet": f"Comprehensive information and latest findings regarding {query}.",
-                        "score": 0.9,
-                    })
                 return results[:max_results]
-            except Exception as e:
-                logger.warning("DuckDuckGo instant search warning: %s", str(e))
-                return [{
-                    "title": f"Summary for {query}",
-                    "url": "https://spidergpt.ai/knowledge",
-                    "snippet": f"Archived knowledge overview for {query}.",
-                    "score": 0.5,
-                }]
