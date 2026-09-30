@@ -1,7 +1,7 @@
 """SpiderGPT Deep Research Task Model."""
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
-from sqlalchemy import DateTime, ForeignKey, String, Text, JSON
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.core.database import Base
@@ -22,4 +22,6 @@ class ResearchTask(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
