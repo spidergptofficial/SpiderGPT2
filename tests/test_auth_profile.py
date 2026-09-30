@@ -26,9 +26,13 @@ async def test_system_providers_status(client):
 
 
 @pytest.mark.asyncio
-async def test_google_auth_flow(client):
-    # Test dev/test login with mock Google payload
+async def test_google_auth_flow(client, monkeypatch):
+    async def fake_verify_google_id_token(_token):
+        return {"sub": "google_gwen_test", "email": "gwen.stacy@spidergpt.com", "name": "Gwen Stacy", "picture": "https://example.com/gwen.png"}
+
+    monkeypatch.setattr("backend.app.services.auth_service.verify_google_id_token", fake_verify_google_id_token)
     res = await client.post("/api/v1/auth/google", json={
+        "id_token": "test-google-id-token",
         "email": "gwen.stacy@spidergpt.com",
         "name": "Gwen Stacy",
         "picture": "https://example.com/gwen.png",
