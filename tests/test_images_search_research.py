@@ -66,6 +66,7 @@ async def test_image_quota_exhaustion(client, test_user, test_user_token, db_ses
 @pytest.mark.asyncio
 async def test_web_search(client, test_user, test_user_token, monkeypatch):
     class FakeSearchProvider:
+        provider_name = "test"
         async def search(self, query, max_results=5):
             return [{"title": "Test result", "url": "https://example.com/result", "snippet": "Deterministic test result.", "score": 1.0}]
 
@@ -80,6 +81,7 @@ async def test_web_search(client, test_user, test_user_token, monkeypatch):
     data = res.json()
     assert "results" in data
     assert len(data["results"]) >= 1
+    assert data["provider"] == "test"
 
 
 @pytest.mark.asyncio
