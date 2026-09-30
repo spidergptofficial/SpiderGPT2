@@ -124,6 +124,8 @@ class Settings(BaseSettings):
                 raise ValueError("Mock image provider is forbidden in production")
             if not self.ADMIN_EMAILS:
                 raise ValueError("ADMIN_EMAILS must be explicitly configured in production")
+            if not self.REDIS_URL:
+                raise ValueError("REDIS_URL is required in production for distributed rate limiting")
         return self
 
 
