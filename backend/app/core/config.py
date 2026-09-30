@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: Optional[str] = None
     RAZORPAY_KEY_SECRET: Optional[str] = None
     RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
+    RAZORPAY_PLAN_PRO_MONTHLY: Optional[str] = None
+    RAZORPAY_PLAN_PRO_YEARLY: Optional[str] = None
+    RAZORPAY_PLAN_PLUS_MONTHLY: Optional[str] = None
+    RAZORPAY_PLAN_PLUS_YEARLY: Optional[str] = None
     STRIPE_PUBLISHABLE_KEY: Optional[str] = None
     STRIPE_SECRET_KEY: Optional[str] = None
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
@@ -128,6 +132,14 @@ class Settings(BaseSettings):
                 raise ValueError("ADMIN_EMAILS must be explicitly configured in production")
             if not self.REDIS_URL:
                 raise ValueError("REDIS_URL is required in production for distributed rate limiting")
+            if self.RAZORPAY_KEY_ID or self.RAZORPAY_KEY_SECRET:
+                if not (self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_SECRET and self.RAZORPAY_WEBHOOK_SECRET):
+                    raise ValueError("Configured Razorpay requires key ID, key secret, and webhook secret")
+                if not all((self.RAZORPAY_PLAN_PRO_MONTHLY, self.RAZORPAY_PLAN_PRO_YEARLY, self.RAZORPAY_PLAN_PLUS_MONTHLY, self.RAZORPAY_PLAN_PLUS_YEARLY)):
+                    raise ValueError("Configured Razorpay requires recurring plan IDs for Pro/Plus monthly/yearly")
+            if self.STRIPE_SECRET_KEY or self.STRIPE_PUBLISHABLE_KEY:
+                if not (self.STRIPE_SECRET_KEY and self.STRIPE_PUBLISHABLE_KEY and self.STRIPE_WEBHOOK_SECRET):
+                    raise ValueError("Configured Stripe requires secret key, publishable key, and webhook secret")
         return self
 
 
