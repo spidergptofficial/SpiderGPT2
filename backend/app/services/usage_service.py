@@ -85,6 +85,10 @@ class UsageService:
         await self.usage_repo.lock_user(user.id)
         used = await self.usage_repo.get_usage_sum(user.id, "ai_response", today)
 
+        if plan.daily_response_limit == -1:
+            await self.usage_repo.record_usage(user.id, "ai_response", quantity=1, date_str=today)
+            return -1
+
         if used >= plan.daily_response_limit:
             raise UsageLimitReachedException(
                 usage_type="daily AI responses",
