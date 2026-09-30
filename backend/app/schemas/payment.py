@@ -1,6 +1,6 @@
 """SpiderGPT Payment Schemas."""
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
 
 
@@ -13,9 +13,9 @@ class PaymentProvidersAvailabilityResponse(BaseModel):
 
 class CreateCheckoutSessionRequest(BaseModel):
     plan_code: str = Field(..., description="PRO or PLUS")
-    billing_period: str = Field(default="monthly", description="monthly or yearly")
-    provider: Optional[str] = Field(None, description="Preferred provider: razorpay or stripe. If omitted, chosen based on currency/config.")
-    currency: Optional[str] = Field(None, description="INR, USD, EUR, etc.")
+    billing_period: Literal["monthly", "yearly"] = Field(default="monthly", description="monthly or yearly")
+    provider: Optional[Literal["razorpay", "stripe"]] = Field(None, description="Preferred provider.")
+    currency: Optional[Literal["INR", "USD"]] = Field(None, description="Supported billing currency.")
 
 
 class CheckoutSessionResponse(BaseModel):
