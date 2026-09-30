@@ -82,6 +82,7 @@ class UsageService:
         """Atomically checks daily response limit and consumes 1 unit."""
         plan = await self.plan_service.get_user_effective_plan(user)
         today = get_current_date_str()
+        await self.usage_repo.lock_user(user.id)
         used = await self.usage_repo.get_usage_sum(user.id, "ai_response", today)
 
         if used >= plan.daily_response_limit:
@@ -98,6 +99,7 @@ class UsageService:
         """Atomically checks daily image limit and consumes 1 unit."""
         plan = await self.plan_service.get_user_effective_plan(user)
         today = get_current_date_str()
+        await self.usage_repo.lock_user(user.id)
         used = await self.usage_repo.get_usage_sum(user.id, "image_generation", today)
 
         if used >= plan.daily_image_limit:
@@ -119,6 +121,7 @@ class UsageService:
             return
 
         month = get_current_month_str()
+        await self.usage_repo.lock_user(user.id)
         used = await self.usage_repo.get_usage_sum(user.id, "spider_name_change", month)
         if used >= plan.monthly_name_change_limit:
             raise UsageLimitReachedException(
@@ -138,6 +141,7 @@ class UsageService:
             return
 
         month = get_current_month_str()
+        await self.usage_repo.lock_user(user.id)
         used = await self.usage_repo.get_usage_sum(user.id, "appearance_change", month)
         if used >= plan.monthly_appearance_change_limit:
             raise UsageLimitReachedException(
@@ -155,5 +159,6 @@ class UsageService:
             raise FeatureNotAvailableException("Custom Spider Appearance Creation", required_plan="PRO")
 
         # Record custom appearance event
+        await self.usage_repo.lock_user(user.id)
         month = get_current_month_str()
         await self.usage_repo.record_usage(user.id, "custom_appearance_creation", quantity=1, date_str=month)
