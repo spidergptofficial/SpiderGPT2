@@ -92,11 +92,18 @@ class StripePaymentProvider(PaymentProvider):
         details = await self.get_checkout_details(order_id)
         return bool(details.get("paid") and details.get("mode") == "subscription" and details.get("provider_subscription_id"))
 
-    async def cancel_subscription(self, provider_subscription_id: str) -> bool:
+    async def cancel_subscription(self, provider_subscription_id: str, cancel_immediately: bool = False) -> bool:
         self._require_configured()
         async with httpx.AsyncClient(timeout=20.0) as client:
             try:
-                resp = await client.delete(f"{self.base_url}/subscriptions/{provider_subscription_id}", headers=self._get_headers())
+                if cancel_immediately:
+                    resp = await client.delete(f"{self.base_url}/subscriptions/{provider_subscription_id}", headers=self._get_headers())
+                else:
+                    resp = await client.post(
+                        f"{self.base_url}/subscriptions/{provider_subscription_id}",
+                        headers=self._get_headers(),
+                        data={"cancel_at_period_end": "true"},
+                    )
                 return resp.status_code in (200, 204)
             except httpx.RequestError:
                 logger.exception("Stripe cancel subscription error")
