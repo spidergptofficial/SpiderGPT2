@@ -64,7 +64,13 @@ async def test_image_quota_exhaustion(client, test_user, test_user_token, db_ses
 
 
 @pytest.mark.asyncio
-async def test_web_search(client, test_user, test_user_token):
+async def test_web_search(client, test_user, test_user_token, monkeypatch):
+    class FakeSearchProvider:
+        async def search(self, query, max_results=5):
+            return [{"title": "Test result", "url": "https://example.com/result", "snippet": "Deterministic test result.", "score": 1.0}]
+
+    from backend.app.providers.search.factory import SearchFactory
+    monkeypatch.setattr(SearchFactory, "get_search_provider", staticmethod(lambda override_name=None: FakeSearchProvider()))
     res = await client.post(
         "/api/v1/search",
         headers=test_user_token,
