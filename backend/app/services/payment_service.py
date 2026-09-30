@@ -92,10 +92,12 @@ class PaymentService:
     async def verify_payment(self, user: User, request: VerifyPaymentRequest) -> Dict[str, Any]:
         """Verifies payment transaction and activates user subscription."""
         order = await self.payment_repo.get_order_by_order_id(request.order_id)
-        if not order:
+        if not order or order.user_id != user.id:
             raise NotFoundException("Order", f"Order {request.order_id} not found.")
 
-        provider = PaymentFactory.resolve_provider(requested_provider=request.provider)
+        if request.provider and request.provider.lower() != order.provider.lower():
+            raise PaymentFailedException("Payment provider does not match the order.")
+        provider = PaymentFactory.resolve_provider(requested_provider=order.provider)
         is_valid = await provider.verify_payment(
             order_id=request.order_id,
             payment_id=request.payment_id,
