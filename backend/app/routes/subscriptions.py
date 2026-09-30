@@ -94,7 +94,9 @@ async def cancel_subscription(
 
     if sub.provider_subscription_id and sub.provider != "manual":
         provider = PaymentFactory.resolve_provider(requested_provider=sub.provider)
-        await provider.cancel_subscription(sub.provider_subscription_id)
+        provider_ok = await provider.cancel_subscription(sub.provider_subscription_id, cancel_immediately=payload.cancel_immediately)
+        if not provider_ok:
+            raise NotFoundException("Subscription", "The payment provider could not update the subscription.")
 
     if payload.cancel_immediately:
         sub.status = "cancelled"
