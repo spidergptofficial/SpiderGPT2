@@ -42,8 +42,8 @@ class StripePaymentProvider(PaymentProvider):
         interval = "year" if billing_period == "yearly" else "month"
         form_data = [
             ("payment_method_types[]", "card"), ("mode", "subscription"),
-            ("success_url", f"{settings.FRONTEND_BASE_URL}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"),
-            ("cancel_url", f"{settings.FRONTEND_BASE_URL}/payment/cancel"),
+            ("success_url", f"{settings.FRONTEND_BASE_URL}/#/payment-success?session_id={{CHECKOUT_SESSION_ID}}"),
+            ("cancel_url", f"{settings.FRONTEND_BASE_URL}/#/pricing"),
             ("customer_email", email),
             ("line_items[0][price_data][currency]", currency.lower()),
             ("line_items[0][price_data][unit_amount]", str(amount)),
