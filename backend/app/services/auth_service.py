@@ -64,8 +64,15 @@ class AuthService:
         # Ensure plans are seeded
         await self.plan_repo.seed_plans_if_empty()
 
-        # Find or create user
-        user = await self.user_repo.get_by_email(email)
+        # Find by the stable identity-provider subject first. Never bind an authenticated
+        # identity to an existing account by email alone: that can cause account takeover
+        # if an email changes provider or an untrusted identity is presented.
+        user = await self.user_repo.get_by_auth_id(auth_id)
+        if not user:
+            existing_by_email = await self.user_repo.get_by_email(email)
+            if existing_by_email and existing_by_email.auth_provider_id != auth_id:
+                raise InvalidTokenException("Authenticated identity does not match the existing account.")
+            user = existing_by_email
         if not user:
             is_admin = email in settings.ADMIN_EMAILS
             user = User(
@@ -84,6 +91,9 @@ class AuthService:
             await self.user_repo.create(user)
             logger.info("New user registered via Google: %s (id: %s)", email, user.id)
         else:
+            # Keep the provider subject immutable once linked.
+            if user.auth_provider_id != auth_id:
+                raise InvalidTokenException("Authenticated identity does not match the existing account.")
             # Update profile info if present
             if google_info.get("picture") and not user.avatar_url:
                 user.avatar_url = google_info["picture"]
