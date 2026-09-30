@@ -31,7 +31,7 @@ class UsageService:
         custom_appearances_used = await self.usage_repo.get_usage_sum(user.id, "custom_appearance_creation", current_month)
 
         # Daily remainders
-        responses_remaining = max(0, plan.daily_response_limit - responses_used)
+        responses_remaining = -1 if plan.daily_response_limit == -1 else max(0, plan.daily_response_limit - responses_used)
         images_remaining = max(0, plan.daily_image_limit - images_used)
 
         # Monthly remainders (-1 indicates unlimited)
