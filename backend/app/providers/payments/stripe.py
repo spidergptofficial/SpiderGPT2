@@ -62,7 +62,8 @@ class StripePaymentProvider(PaymentProvider):
                 data = resp.json()
                 return {"provider": self.provider_name, "order_id": data.get("id"), "amount": amount,
                         "currency": currency.lower(), "key_id": self.publishable_key,
-                        "client_secret": data.get("client_secret"), "checkout_url": data.get("url"), "metadata": meta}
+                        "client_secret": data.get("client_secret"), "checkout_url": data.get("url"),
+                        "provider_subscription_id": data.get("subscription"), "metadata": meta}
             except httpx.RequestError:
                 logger.exception("Stripe network request error")
                 raise PaymentFailedException("Could not connect to Stripe payment gateway.")
@@ -123,13 +124,31 @@ class StripePaymentProvider(PaymentProvider):
         event_type = data.get("type", "")
         obj = data.get("data", {}).get("object", {})
         metadata = obj.get("metadata", {})
+        subscription_id = obj.get("subscription") or (obj.get("id") if event_type.startswith("customer.subscription.") else None)
+        status_map = {
+            "checkout.session.completed": "active",
+            "invoice.payment_succeeded": "active",
+            "invoice.payment_failed": "past_due",
+            "customer.subscription.deleted": "cancelled",
+            "customer.subscription.paused": "paused",
+        }
+        normalized_status = status_map.get(event_type)
+        if event_type == "customer.subscription.updated":
+            normalized_status = {
+                "active": "active", "trialing": "trialing", "past_due": "past_due",
+                "paused": "paused", "canceled": "cancelled", "incomplete": "incomplete",
+                "incomplete_expired": "expired", "unpaid": "past_due",
+            }.get(obj.get("status"), "past_due")
         return {
             "event_id": event_id,
             "event_type": event_type,
             "user_id": metadata.get("user_id"),
             "plan_code": metadata.get("plan_code"),
             "billing_period": metadata.get("billing_period", "monthly"),
-            "provider_subscription_id": obj.get("subscription") or obj.get("id"),
-            "status": "active" if event_type in {"checkout.session.completed", "invoice.payment_succeeded"} else event_type,
+            "provider_subscription_id": subscription_id,
+            "provider_customer_id": obj.get("customer"),
+            "current_period_start": obj.get("current_period_start"),
+            "current_period_end": obj.get("current_period_end"),
+            "status": normalized_status or event_type,
             "raw": data,
         }
