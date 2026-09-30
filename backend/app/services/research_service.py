@@ -25,7 +25,7 @@ from backend.app.utils.id_generator import generate_id
 from backend.app.utils.timezone import get_utc_now
 
 
-async def execute_background_deep_research(task_id: str, query: str) -> None:
+async def execute_background_deep_research(task_id: str) -> None:
     """Independent background worker coroutine for long-running research."""
     logger.info("Starting background Deep Research for task %s", task_id)
     async with async_session_factory() as session:
@@ -83,7 +83,7 @@ async def execute_background_deep_research(task_id: str, query: str) -> None:
 
             report_prompt = (
                 f"You are SpiderGPT Deep Research AI. Produce a comprehensive, structured research report on:\n"
-                f"# Topic: {query}\n\n"
+                f"# Topic: {task.query}\n\n"
                 f"## Gathered Research Sources:\n{sources_summary}\n\n"
                 f"Structure the report with the following markdown sections:\n"
                 f"1. Executive Summary\n"
@@ -110,7 +110,7 @@ async def execute_background_deep_research(task_id: str, query: str) -> None:
         except Exception as e:
             logger.error("Deep Research failed for task %s: %s", task_id, str(e))
             task.status = "failed"
-            task.report = f"Deep research failed due to an internal error: {str(e)}"
+            task.report = "Deep research failed due to an internal error. Please retry the research task."
             await session.commit()
 
 
