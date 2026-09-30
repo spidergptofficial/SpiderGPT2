@@ -70,4 +70,4 @@ async def test_plans_endpoint_pricing(client):
     assert codes["PLUS"]["monthly_price_inr"] == 999
     assert codes["PLUS"]["yearly_price_inr"] == 10788
     assert codes["PLUS"]["annual_monthly_equivalent_inr"] == 899
-    assert codes["PLUS"]["daily_response_limit"] == 300
+    assert codes["PLUS"]["daily_response_limit"] == -1
