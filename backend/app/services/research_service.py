@@ -7,7 +7,7 @@ Executes asynchronous multi-step research:
 4. Synthesis report generation with citations
 """
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,19 +25,20 @@ from backend.app.utils.id_generator import generate_id
 from backend.app.utils.timezone import get_utc_now
 
 
-async def execute_background_deep_research(task_id: str) -> None:
+async def execute_background_deep_research(task_id: str, already_claimed: bool = False) -> None:
     """Independent background worker coroutine for long-running research."""
     logger.info("Starting background Deep Research for task %s", task_id)
     async with async_session_factory() as session:
-        claim = await session.execute(
-            update(ResearchTask)
-            .where(ResearchTask.id == task_id, ResearchTask.status == "queued")
-            .values(status="running")
-        )
-        await session.commit()
-        if claim.rowcount != 1:
-            logger.info("Research task %s was already claimed.", task_id)
-            return
+        if not already_claimed:
+            claim = await session.execute(
+                update(ResearchTask)
+                .where(ResearchTask.id == task_id, ResearchTask.status == "queued")
+                .values(status="running", started_at=get_utc_now(), attempts=ResearchTask.attempts + 1)
+            )
+            await session.commit()
+            if claim.rowcount != 1:
+                logger.info("Research task %s was already claimed.", task_id)
+                return
 
         result = await session.execute(select(ResearchTask).where(ResearchTask.id == task_id))
         task = result.scalar_one_or_none()
@@ -109,8 +110,9 @@ async def execute_background_deep_research(task_id: str) -> None:
 
         except Exception as e:
             logger.error("Deep Research failed for task %s: %s", task_id, str(e))
-            task.status = "failed"
-            task.report = "Deep research failed due to an internal error. Please retry the research task."
+            task.status = "failed" if task.attempts >= 3 else "queued"
+            task.report = "Deep research failed due to an internal error. Please retry the research task." if task.status == "failed" else None
+            task.completed_at = get_utc_now() if task.status == "failed" else None
             await session.commit()
 
 
