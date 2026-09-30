@@ -114,8 +114,10 @@ class Settings(BaseSettings):
                 raise ValueError("A strong JWT_SECRET_KEY is required in production")
             if not self.DATABASE_URL.startswith(("postgresql+asyncpg://", "postgresql://")):
                 raise ValueError("Production requires PostgreSQL via asyncpg")
-            if self.STORAGE_PROVIDER.lower() == "local":
-                raise ValueError("Local filesystem storage is forbidden in production")
+            if self.STORAGE_PROVIDER.lower() != "supabase":
+                raise ValueError("Production currently requires STORAGE_PROVIDER=supabase")
+            if not self.SUPABASE_SERVICE_ROLE_KEY or not self.STORAGE_BUCKET_NAME:
+                raise ValueError("Supabase service-role storage credentials are required in production")
             if self.AI_PROVIDER.lower() == "gemini" and not self.GEMINI_API_KEY:
                 raise ValueError("Configured production AI provider is missing its API key")
             if self.AI_PROVIDER.lower() == "openai" and not self.OPENAI_API_KEY:
