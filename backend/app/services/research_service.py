@@ -9,7 +9,7 @@ Executes asynchronous multi-step research:
 import asyncio
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import async_session_factory
@@ -37,9 +37,7 @@ async def execute_background_deep_research(task_id: str, query: str) -> None:
             return
 
         try:
-            # 1. Update status to running
-            task.status = "running"
-            await session.commit()
+            # Job is claimed by the worker before this function runs.
 
             # 2. Decompose question into sub-queries via AI
             decomp_prompt = (
@@ -128,8 +126,7 @@ class ResearchService:
         )
         await self.repo.create_task(task)
 
-        # Dispatch background coroutine
-        asyncio.create_task(execute_background_deep_research(task.id, query))
+        # Persist only. A separate worker process claims queued jobs durably.
         return task
 
     async def get_task(self, task_id: str, user: User) -> ResearchTask:
