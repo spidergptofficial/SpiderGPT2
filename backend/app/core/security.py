@@ -73,7 +73,9 @@ async def verify_google_id_token(id_token: str) -> Dict[str, Any]:
             # If Google Client ID is configured, verify aud
             if settings.GOOGLE_CLIENT_ID and data.get("aud") != settings.GOOGLE_CLIENT_ID:
                 logger.warning("Google ID token audience mismatch: %s vs %s", data.get("aud"), settings.GOOGLE_CLIENT_ID)
-                # In test/dev we allow or warn, but if configured strictly verify
+                raise InvalidTokenException("Google ID token audience mismatch.")
+            if data.get("email_verified") not in [True, "true", "True"]:
+                raise InvalidTokenException("Google account email is not verified.")
             return {
                 "sub": data.get("sub"),
                 "email": data.get("email"),
