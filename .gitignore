@@ -11,4 +11,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
-.env
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
