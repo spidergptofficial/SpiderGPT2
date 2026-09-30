@@ -143,3 +143,10 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                             if len(results) >= max_results:
                                 break
                 return results[:max_results]
+
+            except httpx.RequestError as e:
+                logger.warning("DuckDuckGo instant search network warning: %s", str(e))
+                return []
+            except ValueError as e:
+                logger.warning("DuckDuckGo response parsing warning: %s", str(e))
+                return []
