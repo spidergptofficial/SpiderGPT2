@@ -128,6 +128,12 @@ class Settings(BaseSettings):
                 raise ValueError("Configured production AI provider is missing its API key")
             if self.IMAGE_PROVIDER.lower() == "mock":
                 raise ValueError("Mock image provider is forbidden in production")
+            if self.IMAGE_PROVIDER.lower() == "openai" and not self.OPENAI_API_KEY:
+                raise ValueError("Configured production image provider is missing OPENAI_API_KEY")
+            if self.IMAGE_PROVIDER.lower() == "gemini" and not self.GEMINI_API_KEY:
+                raise ValueError("Configured production image provider is missing GEMINI_API_KEY")
+            if self.WEB_SEARCH_PROVIDER.lower() in {"tavily", "serper"} and not self.WEB_SEARCH_API_KEY:
+                raise ValueError("Configured production search provider is missing WEB_SEARCH_API_KEY")
             if not self.SUPABASE_URL or not self.SUPABASE_ANON_KEY:
                 raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY are required in production")
             if not self.ADMIN_EMAILS:
