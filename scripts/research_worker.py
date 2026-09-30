@@ -31,7 +31,7 @@ async def worker_loop():
     while True:
         task_id = await next_task_id()
         if task_id:
-            await execute_background_deep_research(task_id, "")
+            await execute_background_deep_research(task_id)
         else:
             await asyncio.sleep(POLL_SECONDS)
 
