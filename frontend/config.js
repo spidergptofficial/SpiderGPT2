@@ -1,0 +1,1 @@
+window.SPIDERGPT_CONFIG={API_URL:"http://localhost:8000/api/v1",SUPABASE_URL:"",SUPABASE_ANON_KEY:""};
