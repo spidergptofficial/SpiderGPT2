@@ -378,8 +378,8 @@ async function render(){
     const root=document.querySelector("#app");
     if(!root)return;
     const p=currentPath();
-    if(p==="/"){root.innerHTML=pageSplash();window.clearTimeout(render.splash);render.splash=window.setTimeout(function(){go(isAuthed()?"/home":"/welcome");},900);return;}
     root.innerHTML=await route();
+    if(p==="/"){window.clearTimeout(render.splash);render.splash=window.setTimeout(function(){go(isAuthed()?"/home":"/welcome");},900);return;}
     window.scrollTo(0,0);
   }catch(e){console.error(e);document.querySelector("#app").innerHTML=authBackground('<div class="auth-card"><h1>Something went wrong.</h1><p class="auth-copy">'+esc(e.message||"Please try again.")+'</p><button class="primary wide" onclick="location.reload()">Reload</button></div>');}
   finally{rendering=false;}
