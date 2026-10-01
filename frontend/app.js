@@ -349,30 +349,25 @@ async function logout(){
 function openMenu(){state.menu=true;render();}
 function closeMenu(){state.menu=false;render();}
 
+const SCREEN_MODULES = {
+  "/":"./pages/splash.js","/welcome":"./pages/welcome.js","/profile-setup":"./pages/profile-setup.js","/create-spider":"./pages/create-spider.js",
+  "/home":"./pages/home.js","/chat":"./pages/chat.js","/personality":"./pages/personality.js","/history":"./pages/history.js","/profile":"./pages/profile.js",
+  "/spider":"./pages/spider.js","/settings":"./pages/settings.js","/spider/customize":"./pages/spider-customize.js","/themes":"./pages/themes.js",
+  "/saved":"./pages/saved.js","/share":"./pages/share.js","/usage":"./pages/usage.js","/pricing":"./pages/pricing.js",
+  "/payment-success":"./pages/payment-success.js","/billing":"./pages/billing.js","/checkout":"./pages/checkout.js"
+};
+
 async function route(){
   const p=currentPath();
-  if(p==="/") return pageSplash();
-  if(p==="/welcome") return pageWelcome();
-  if(!isAuthed()) return pageWelcome();
-  if(p==="/profile-setup") return pageProfileSetup();
-  if(p==="/create-spider") return pageCreateSpider();
-  if(p==="/home") return pageHome();
-  if(p==="/chat") return pageChat();
-  if(p==="/personality") return pagePersonality();
-  if(p==="/history") return pageHistory();
-  if(p==="/profile") return pageProfile();
-  if(p==="/spider") return pageSpider();
-  if(p==="/settings") return pageSettings();
-  if(p==="/spider/customize") return pageCustomize();
-  if(p==="/themes") return pageThemes();
-  if(p==="/saved") return pageSaved();
-  if(p==="/share") return pageShare();
-  if(p==="/usage") return pageUsage();
-  if(p==="/pricing") return pagePricing();
-  if(p==="/payment-success") return pageSuccess();
-  if(p==="/billing") return pageBilling();
-  if(p.indexOf("/checkout/")===0) return pageCheckout(p.split("/")[2]?.toUpperCase()||"PRO");
-  return pageHome();
+  if(p!=="/" && p!=="/welcome" && !isAuthed()) return pageWelcome();
+  const modulePath = p.indexOf("/checkout/")===0 ? SCREEN_MODULES["/checkout"] : (SCREEN_MODULES[p] || SCREEN_MODULES["/home"]);
+  const module = await import(modulePath);
+  const args = p.indexOf("/checkout/")===0 ? [p.split("/")[2]?.toUpperCase() || "PRO"] : [];
+  return module.renderScreen({
+    args,
+    pageSplash,pageWelcome,pageProfileSetup,pageCreateSpider,pageHome,pageChat,pagePersonality,pageHistory,pageProfile,pageSpider,
+    pageSettings,pageCustomize,pageThemes,pageSaved,pageShare,pageUsage,pagePricing,pageCheckout,pageSuccess,pageBilling
+  });
 }
 
 let rendering=false;
