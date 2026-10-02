@@ -1,0 +1,1 @@
+import{api}from"../shared/api.js";import{boot}from"../shared/runtime.js";boot();api("/saved").then(xs=>{document.querySelector("#savedList").innerHTML=xs.length?xs.map(x=>`<div class="list-row"><span>${x.message_content||"Saved message"}</span><small>${x.note||""}</small></div>`).join(""):"<div class='notice'>No saved messages yet.</div>"});
