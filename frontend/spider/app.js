@@ -1,0 +1,1 @@
+import{api}from"../shared/api.js";import{boot}from"../shared/runtime.js";boot();api("/spider/me").then(s=>{document.querySelector("#spiderName").textContent=s.spider_name||"Your Spider";document.querySelector("#spiderMode").textContent=s.personality_mode||"Brain"});
