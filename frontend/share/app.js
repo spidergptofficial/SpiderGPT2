@@ -1,0 +1,1 @@
+import{api}from"../shared/api.js";import{boot}from"../shared/runtime.js";boot();api("/spider/me").then(s=>document.querySelector("#shareName").textContent=s.spider_name||"Your Spider");document.querySelector("#copy").onclick=async()=>{await navigator.clipboard.writeText(location.href);document.querySelector("#copy").textContent="Copied ✓"};
