@@ -1,9 +1,1 @@
-import { defineConfig } from "vite";
-
-export default defineConfig({
-  root: "frontend",
-  envDir: ".",
-  base: "/",
-  build: { outDir: "../dist", emptyOutDir: true },
-  server: { host: "0.0.0.0", port: 3000 }
-});
+import{defineConfig}from"vite";import{resolve}from"node:path";export default defineConfig({root:"frontend",envDir:".",base:"/",appType:"mpa",build:{outDir:"../dist",emptyOutDir:true,rolldownOptions:{input:{main:resolve("frontend/index.html"),welcome:resolve("frontend/welcome/index.html"),profileSetup:resolve("frontend/profile-setup/index.html"),createSpider:resolve("frontend/create-spider/index.html"),home:resolve("frontend/home/index.html"),chat:resolve("frontend/chat/index.html"),personality:resolve("frontend/personality/index.html"),history:resolve("frontend/history/index.html"),profile:resolve("frontend/profile/index.html"),spider:resolve("frontend/spider/index.html"),settings:resolve("frontend/settings/index.html"),spiderCustomize:resolve("frontend/spider-customize/index.html"),themes:resolve("frontend/themes/index.html"),saved:resolve("frontend/saved/index.html"),share:resolve("frontend/share/index.html"),usage:resolve("frontend/usage/index.html"),pricing:resolve("frontend/pricing/index.html"),checkout:resolve("frontend/checkout/index.html"),paymentSuccess:resolve("frontend/payment-success/index.html"),billing:resolve("frontend/billing/index.html")}}},server:{host:"0.0.0.0",port:3000}});
