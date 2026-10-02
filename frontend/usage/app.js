@@ -1,0 +1,1 @@
+import{api}from"../shared/api.js";import{boot}from"../shared/runtime.js";boot();api("/usage").then(u=>{document.querySelector("#responses").textContent=u.responses_remaining===-1?"Unlimited":u.responses_remaining;document.querySelector("#images").textContent=u.images_remaining===-1?"Unlimited":u.images_remaining});
