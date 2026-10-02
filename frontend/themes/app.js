@@ -1,0 +1,1 @@
+import{boot}from"../shared/runtime.js";boot();document.querySelectorAll("[data-theme]").forEach(b=>b.onclick=()=>{localStorage.setItem("spidergpt_theme",b.dataset.theme);document.body.dataset.theme=b.dataset.theme});
