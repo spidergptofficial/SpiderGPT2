@@ -1,0 +1,1 @@
+import{googleLogin,sync}from"../shared/auth.js";document.querySelector("#google").onclick=googleLogin;sync().catch(()=>{});
