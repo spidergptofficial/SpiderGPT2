@@ -1,0 +1,1 @@
+import{boot}from"../shared/runtime.js";boot();
